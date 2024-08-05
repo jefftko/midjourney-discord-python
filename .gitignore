@@ -14,3 +14,7 @@ test/**/data
 # pipenv
 Pipfile
 Pipfile.lock
+
+*.swp
+*.pyc
+.DS_Store
