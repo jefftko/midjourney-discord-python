@@ -1,18 +1,15 @@
 import asyncio
 from collections import deque
 from os import getenv
-from typing import ParamSpec, Callable, Any, Dict, List, Deque
+from typing import Callable, Any, Dict, List, Deque
 
 from loguru import logger
 
 from exceptions import QueueFullError
 
-P = ParamSpec("P")
-
-
 class Task:
     def __init__(
-        self, func: Callable[P, Any], *args: P.args, **kwargs: P.kwargs
+        self, func: Callable[..., Any], *args: Any, **kwargs: Any
     ) -> None:
         self.func = func
         self.args = args
@@ -35,9 +32,9 @@ class TaskQueue:
     def put(
             self,
             _trigger_id: str,
-            func: Callable[P, Any],
-            *args: P.args,
-            **kwargs: P.kwargs
+            func: Callable[..., Any],
+            *args: Any,
+            **kwargs: Any
     ) -> None:
         if len(self._wait_queue) >= self._wait_size:
             raise QueueFullError(f"Task queue is full: {self._wait_size}")
@@ -60,9 +57,14 @@ class TaskQueue:
         logger.debug(f"Task[{key}] start execution: {task}")
         loop = asyncio.get_running_loop()
         tsk = loop.create_task(task())
-        # tsk.add_done_callback(
-        #     lambda t: print(t.result())
-        # )  # todo
+        tsk.add_done_callback(self._on_task_done)
+
+    def _on_task_done(self, tsk):
+        try:
+            result = tsk.result()
+            logger.debug(f"Task result: {result}")
+        except Exception as e:
+            logger.error(f"Task failed: {e}")
 
     def concur_size(self):
         return self._concur_size
@@ -81,3 +83,4 @@ taskqueue = TaskQueue(
     int(getenv("CONCUR_SIZE") or 9999),
     int(getenv("WAIT_SIZE") or 9999),
 )
+
